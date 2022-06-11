@@ -1,17 +1,22 @@
 {
-  "name": "craft",
-  "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
-  "private": true,
-  "devDependencies": {
-    "@types/node": "^17.0.40",
-    "esbuild": "^0.14.42",
-    "minimist": "^1.2.6",
-    "typescript": "^4.7.3"
-  },
-  "scripts": {
-    "esv": "./node_modules/.bin/esbuild --version",
-    "build": "node script/build.js"
-  }
+	"name": "craft",
+	"version": "1.0.0",
+	"main": "index.js",
+	"license": "MIT",
+	"private": true,
+	"devDependencies": {
+		"@types/node": "^17.0.40",
+		"esbuild": "^0.14.42",
+		"husky": "^8.0.1",
+		"minimist": "^1.2.6",
+		"prettier": "^2.6.2",
+		"pretty-quick": "^3.1.3",
+		"typescript": "^4.7.3"
+	},
+	"scripts": {
+		"esv": "./node_modules/.bin/esbuild --version",
+		"build": "node script/build.js",
+		"prepare": "husky install",
+		"pretty-quick": "pretty-quick --staged"
+	}
 }
