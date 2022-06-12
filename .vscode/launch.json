@@ -10,6 +10,14 @@
 			"name": "ch1",
 			"skipFiles": ["<node_internals>/**"],
 			"program": "ch1/index.js"
+		},
+		{
+			"type": "pwa-node",
+			"request": "launch",
+			"name": "ch2",
+			"skipFiles": ["<node_internals>/**"],
+			"program": "ch2/index.js",
+			"args": ["ch2/test.js"]
 		}
 	]
 }

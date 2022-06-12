@@ -10,9 +10,16 @@ const outfile = `ch${ch}/index.js`;
 
 require('esbuild')
 	.build({
+		platform: 'node',
 		entryPoints: [entry],
 		bundle: true,
 		sourcemap: true,
-		outfile
+		outfile,
+		watch: {
+			onRebuild(error, result) {
+				if (error) console.error('watch build failed:', error);
+				else console.log('watch build succeeded:', result);
+			}
+		}
 	})
 	.catch(() => process.exit(1));
