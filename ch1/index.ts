@@ -46,7 +46,7 @@ const tokenArray: Token[] = [
 // super tiny tokenizer
 class Tokenizer {
 	private tokens: Token[];
-	private pos: number = 0;
+	private pos = 0;
 	constructor(tokens: Token[]) {
 		this.tokens = tokens;
 	}
@@ -137,7 +137,7 @@ class FunctionBody extends Statement {
 		if (!node) {
 			return false;
 		}
-		if (Object.getPrototypeOf(node) == FunctionBody.prototype) {
+		if (Object.getPrototypeOf(node) === FunctionBody.prototype) {
 			return true;
 		} else {
 			return false;
@@ -168,7 +168,7 @@ class FunctionCall extends Statement {
 		if (!node) {
 			return false;
 		}
-		if (Object.getPrototypeOf(node) == FunctionCall.prototype) {
+		if (Object.getPrototypeOf(node) === FunctionCall.prototype) {
 			return true;
 		} else {
 			return false;
@@ -199,7 +199,7 @@ class Parser {
 	 * prog = (functionDecl | functionCall)* ;
 	 */
 	parseProg(): Prog {
-		let stmts: Statement[] = [];
+		const stmts: Statement[] = [];
 		let stmt: Statement | null | void = null;
 		while (true) {
 			stmt = this.parseFunctionDecl();
@@ -224,15 +224,15 @@ class Parser {
 	 * functionDecl: "function" Identifier "(" ")"  functionBody;
 	 */
 	parseFunctionDecl(): void | FunctionDecl | null {
-		let oldPos = this.tokenizer.position();
+		const oldPos = this.tokenizer.position();
 		let t = this.tokenizer.next();
-		if (t.kind == TokenKind.Keyword && t.text === 'function') {
+		if (t.kind === TokenKind.Keyword && t.text === 'function') {
 			t = this.tokenizer.next();
-			if (t.kind == TokenKind.Identifier) {
+			if (t.kind === TokenKind.Identifier) {
 				const t1 = this.tokenizer.next();
-				if (t1.text == '(') {
+				if (t1.text === '(') {
 					const t2 = this.tokenizer.next();
-					if (t2.text == ')') {
+					if (t2.text === ')') {
 						const functionBody = this.parseFunctionBody();
 						if (FunctionBody.isFunctionBodyNode(functionBody)) {
 							return new FunctionDecl(t.text, functionBody);
@@ -264,17 +264,17 @@ class Parser {
 	 * functionBody : '{' functionCall* '}' ;
 	 */
 	parseFunctionBody() {
-		let oldPos: number = this.tokenizer.position();
-		let stmts: FunctionCall[] = [];
+		const oldPos: number = this.tokenizer.position();
+		const stmts: FunctionCall[] = [];
 		let t: Token = this.tokenizer.next();
-		if (t.text == '{') {
+		if (t.text === '{') {
 			let functionCall = this.parseFunctionCall();
 			while (FunctionCall.isFunctionCallNode(functionCall)) {
 				stmts.push(functionCall);
 				functionCall = this.parseFunctionCall();
 			}
 			t = this.tokenizer.next();
-			if (t.text == '}') {
+			if (t.text === '}') {
 				return new FunctionBody(stmts);
 			} else {
 				console.log(
@@ -295,16 +295,16 @@ class Parser {
 	 * parameterList : StringLiteral (',' StringLiteral)* ;
 	 */
 	parseFunctionCall(): void | Statement | null {
-		let oldPos: number = this.tokenizer.position();
-		let params: string[] = [];
+		const oldPos: number = this.tokenizer.position();
+		const params: string[] = [];
 		const t: Token = this.tokenizer.next();
-		if (t.kind == TokenKind.Identifier) {
+		if (t.kind === TokenKind.Identifier) {
 			const t1 = this.tokenizer.next();
-			if (t1.text == '(') {
+			if (t1.text === '(') {
 				let t2 = this.tokenizer.next();
 				// get params in the loop
-				while (t2.text != ')') {
-					if (t2.kind == TokenKind.StringLiteral) {
+				while (t2.text !== ')') {
+					if (t2.kind === TokenKind.StringLiteral) {
 						params.push(t2.text);
 					} else {
 						console.log(
@@ -314,8 +314,8 @@ class Parser {
 						return;
 					}
 					t2 = this.tokenizer.next();
-					if (t2.text != ')') {
-						if (t2.text == ',') {
+					if (t2.text !== ')') {
+						if (t2.text === ',') {
 							t2 = this.tokenizer.next();
 						} else {
 							console.log(
@@ -327,9 +327,8 @@ class Parser {
 					}
 				}
 				t2 = this.tokenizer.next();
-				if (t2.text == ';') {
+				if (t2.text === ';') {
 					return new FunctionCall(t.text, params);
-				} else {
 				}
 			}
 		}
@@ -345,7 +344,7 @@ class Parser {
 abstract class AstVisitor {
 	visitProg(prog: Prog) {
 		let res: any;
-		for (let x of prog.stmts) {
+		for (const x of prog.stmts) {
 			if (typeof (x as FunctionDecl).body === 'object') {
 				res = this.visitFunctionDecl(x as FunctionDecl);
 			} else {
@@ -359,7 +358,7 @@ abstract class AstVisitor {
 	}
 	visitFunctionBody(functionBody: FunctionBody): any {
 		let res: any;
-		for (let x of functionBody.stmts) {
+		for (const x of functionBody.stmts) {
 			res = this.visitFunctionCall(x);
 		}
 		return res;
@@ -380,8 +379,8 @@ class RefResolver extends AstVisitor {
 	prog: Prog | null = null;
 	visitProg(prog: Prog) {
 		this.prog = prog;
-		for (let x of prog.stmts) {
-			let functionCall = x as FunctionCall;
+		for (const x of prog.stmts) {
+			const functionCall = x as FunctionCall;
 			if (typeof functionCall.params === 'object') {
 				this.resolveFunctionCall(prog, functionCall);
 			} else {
@@ -390,8 +389,8 @@ class RefResolver extends AstVisitor {
 		}
 	}
 	visitFunctionBody(functionBody: FunctionBody) {
-		if (this.prog != null) {
-			for (let x of functionBody.stmts) {
+		if (this.prog !== null) {
+			for (const x of functionBody.stmts) {
 				this.resolveFunctionCall(this.prog, x);
 			}
 		}
@@ -412,8 +411,8 @@ class RefResolver extends AstVisitor {
 	}
 
 	private findFunctionDecl(prog: Prog, name: string): FunctionDecl | null {
-		for (let x of prog.stmts) {
-			let functionDecl = x as FunctionDecl;
+		for (const x of prog.stmts) {
+			const functionDecl = x as FunctionDecl;
 			if (
 				typeof functionDecl.body === 'object' &&
 				functionDecl.name === name
@@ -430,8 +429,8 @@ class RefResolver extends AstVisitor {
  */
 class Intepretor extends AstVisitor {
 	visitProg(prog: Prog) {
-		for (let x of prog.stmts) {
-			let functioncall = x as FunctionCall;
+		for (const x of prog.stmts) {
+			const functioncall = x as FunctionCall;
 			if (typeof functioncall.params === 'object') {
 				this.runFunction(functioncall);
 			}
@@ -440,20 +439,20 @@ class Intepretor extends AstVisitor {
 
 	visitFunctionBody(functionBody: FunctionBody): any {
 		let retVal: any;
-		for (let x of functionBody.stmts) {
+		for (const x of functionBody.stmts) {
 			retVal = this.runFunction(x);
 		}
 	}
 
 	runFunction(functioncall: FunctionCall): any {
-		if (functioncall.name == 'println') {
+		if (functioncall.name === 'println') {
 			if (functioncall.params.length > 0) {
 				console.log(functioncall.params.join(''));
 			} else {
 				console.log();
 			}
 		} else {
-			if (functioncall.definition != null) {
+			if (functioncall.definition !== null) {
 				this.visitFunctionBody(functioncall.definition.body);
 			}
 		}
@@ -464,7 +463,7 @@ const compileAndRun = () => {
 	//tokenize
 	const tokenizer = new Tokenizer(tokenArray);
 	console.log('\nthe token used: ');
-	for (let token of tokenArray) {
+	for (const token of tokenArray) {
 		console.log(token);
 	}
 

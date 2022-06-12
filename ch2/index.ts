@@ -38,7 +38,7 @@ class CharStream {
 	}
 	next() {
 		const ch = this.data.charAt(this.pos++);
-		if (ch == '\n') {
+		if (ch === '\n') {
 			this.line++;
 			this.col = 0;
 		} else {
@@ -47,7 +47,7 @@ class CharStream {
 		return ch;
 	}
 	eof() {
-		return this.peek() == '';
+		return this.peek() === '';
 	}
 }
 
@@ -92,54 +92,54 @@ class Tokenizer {
 		const ch = this.stream.peek();
 		if (this.isLetter(ch) || this.isDigit(ch)) {
 			return this.parseIdentifer();
-		} else if (ch == '"') {
+		} else if (ch === '"') {
 			return this.parseStringLiteral();
 		} else if (['(', ')', '{', '}', ';', ','].includes(ch)) {
 			this.stream.next();
 			return {kind: TokenKind.Seperator, text: ch};
-		} else if (ch == '/') {
+		} else if (ch === '/') {
 			this.stream.next();
 			const ch1 = this.stream.peek();
-			if (ch1 == '*') {
+			if (ch1 === '*') {
 				this.skipMultiLineComments();
 				return this.getAToken();
-			} else if (ch1 == '/') {
+			} else if (ch1 === '/') {
 				this.skipSingleLineComment();
 				return this.getAToken();
-			} else if (ch1 == '=') {
+			} else if (ch1 === '=') {
 				this.stream.next();
 				return {kind: TokenKind.Operator, text: '/='};
 			} else {
 				return {kind: TokenKind.Operator, text: '/'};
 			}
-		} else if (ch == '+') {
+		} else if (ch === '+') {
 			this.stream.next();
 			const ch1 = this.stream.peek();
-			if (ch1 == '+') {
+			if (ch1 === '+') {
 				this.stream.next();
 				return {kind: TokenKind.Operator, text: '++'};
-			} else if (ch1 == '=') {
+			} else if (ch1 === '=') {
 				this.stream.next();
 				return {kind: TokenKind.Operator, text: '+='};
 			} else {
 				return {kind: TokenKind.Operator, text: '+'};
 			}
-		} else if (ch == '-') {
+		} else if (ch === '-') {
 			this.stream.next();
-			let ch1 = this.stream.peek();
-			if (ch1 == '-') {
+			const ch1 = this.stream.peek();
+			if (ch1 === '-') {
 				this.stream.next();
 				return {kind: TokenKind.Operator, text: '--'};
-			} else if (ch1 == '=') {
+			} else if (ch1 === '=') {
 				this.stream.next();
 				return {kind: TokenKind.Operator, text: '-='};
 			} else {
 				return {kind: TokenKind.Operator, text: '-'};
 			}
-		} else if (ch == '*') {
+		} else if (ch === '*') {
 			this.stream.next();
-			let ch1 = this.stream.peek();
-			if (ch1 == '=') {
+			const ch1 = this.stream.peek();
+			if (ch1 === '=') {
 				this.stream.next();
 				return {kind: TokenKind.Operator, text: '*='};
 			} else {
@@ -162,7 +162,7 @@ class Tokenizer {
 
 	skipSingleLineComment() {
 		this.stream.next();
-		while (this.stream.peek() != '\n' && !this.stream.eof()) {
+		while (this.stream.peek() !== '\n' && !this.stream.eof()) {
 			this.stream.next();
 		}
 	}
@@ -173,7 +173,7 @@ class Tokenizer {
 			let ch1 = this.stream.next();
 			while (!this.stream.eof()) {
 				const ch2 = this.stream.next();
-				if (ch1 == '*' && ch2 == '/') {
+				if (ch1 === '*' && ch2 === '/') {
 					return;
 				}
 				ch1 = ch2;
@@ -187,10 +187,10 @@ class Tokenizer {
 	private parseStringLiteral(): Token {
 		const token: Token = {kind: TokenKind.StringLiteral, text: ''};
 		this.stream.next();
-		while (!this.stream.eof() && this.stream.peek() != '"') {
+		while (!this.stream.eof() && this.stream.peek() !== '"') {
 			token.text += this.stream.next();
 		}
-		if (this.stream.peek() == '"') {
+		if (this.stream.peek() === '"') {
 			this.stream.next();
 		} else {
 			console.log(
@@ -216,7 +216,7 @@ class Tokenizer {
 			token.text += this.stream.next();
 		}
 
-		if (token.text == 'function') {
+		if (token.text === 'function') {
 			token.kind = TokenKind.Keyword;
 		}
 
@@ -228,7 +228,7 @@ class Tokenizer {
 			(ch >= 'A' && ch <= 'Z') ||
 			(ch >= 'a' && ch <= 'z') ||
 			(ch >= '0' && ch <= '9') ||
-			ch == '_'
+			ch === '_'
 		);
 	}
 
@@ -250,7 +250,7 @@ class Tokenizer {
 	}
 
 	private isWhiteSpace(ch: string): boolean {
-		return ch == ' ' || ch == '\n' || ch == '\t';
+		return ch === ' ' || ch === '\n' || ch === '\t';
 	}
 }
 
@@ -360,17 +360,17 @@ class Parser {
 	 * prog = (functionDecl | functionCall)*
 	 */
 	parseProg(): Prog {
-		let stmts: Statement[] = [];
+		const stmts: Statement[] = [];
 		let stmt: Statement | null | void = null;
 		let token = this.tokenizer.peek();
-		while (token.kind != TokenKind.EOF) {
-			if (token.kind == TokenKind.Keyword && token.text == 'function') {
+		while (token.kind !== TokenKind.EOF) {
+			if (token.kind === TokenKind.Keyword && token.text === 'function') {
 				stmt = this.parseFunctionDecl();
-			} else if (token.kind == TokenKind.Identifier) {
+			} else if (token.kind === TokenKind.Identifier) {
 				stmt = this.parseFunctionCall();
 			}
 
-			if (stmt != null) {
+			if (stmt) {
 				stmts.push(stmt);
 				console.log('add a statement successfully');
 			} else {
@@ -389,13 +389,13 @@ class Parser {
 		// skip "function" keyword
 		this.tokenizer.next();
 		const t = this.tokenizer.next();
-		if (t.kind == TokenKind.Identifier) {
+		if (t.kind === TokenKind.Identifier) {
 			const t1 = this.tokenizer.next();
-			if (t1.text == '(') {
+			if (t1.text === '(') {
 				const t2 = this.tokenizer.next();
-				if (t2.text == ')') {
+				if (t2.text === ')') {
 					const functionBody = this.parseFunctionBody();
-					if (!!functionBody) {
+					if (functionBody) {
 						return new FunctionDecl(t.text, functionBody);
 					} else {
 						console.log(
@@ -428,11 +428,11 @@ class Parser {
 	 */
 	parseFunctionBody(): FunctionBody | null {
 		const t = this.tokenizer.next();
-		if (t.text == '{') {
+		if (t.text === '{') {
 			const stmts: FunctionCall[] = [];
-			while (this.tokenizer.peek().kind == TokenKind.Identifier) {
+			while (this.tokenizer.peek().kind === TokenKind.Identifier) {
 				const functionCall = this.parseFunctionCall();
-				if (!!functionCall) {
+				if (functionCall) {
 					stmts.push(functionCall);
 				} else {
 					console.log(
@@ -443,7 +443,7 @@ class Parser {
 			}
 
 			const t1 = this.tokenizer.next();
-			if (t1.text == '}') {
+			if (t1.text === '}') {
 				return new FunctionBody(stmts);
 			} else {
 				console.log(
@@ -463,13 +463,13 @@ class Parser {
 	 */
 	parseFunctionCall(): void | FunctionCall | null {
 		const t = this.tokenizer.next();
-		if (t.kind == TokenKind.Identifier) {
+		if (t.kind === TokenKind.Identifier) {
 			const params: string[] = [];
 			const t1 = this.tokenizer.next();
-			if (t1.text == '(') {
+			if (t1.text === '(') {
 				let t2 = this.tokenizer.next();
-				while (t2.text != ')') {
-					if (t2.kind == TokenKind.StringLiteral) {
+				while (t2.text !== ')') {
+					if (t2.kind === TokenKind.StringLiteral) {
 						params.push(t2.text);
 					} else {
 						console.log(
@@ -480,8 +480,8 @@ class Parser {
 					}
 
 					t2 = this.tokenizer.next();
-					if (t2.text != ')') {
-						if (t2.text == ',') {
+					if (t2.text !== ')') {
+						if (t2.text === ',') {
 							t2 = this.tokenizer.next();
 						} else {
 							console.log(
@@ -494,7 +494,7 @@ class Parser {
 				}
 
 				t2 = this.tokenizer.next();
-				if (t2.text == ';') {
+				if (t2.text === ';') {
 					return new FunctionCall(t.text, params);
 				} else {
 					console.log(
@@ -519,7 +519,7 @@ class Parser {
 abstract class AstVisitor {
 	visitProg(prog: Prog) {
 		let res: any;
-		for (let x of prog.stmts) {
+		for (const x of prog.stmts) {
 			if (typeof (x as FunctionDecl).body === 'object') {
 				res = this.visitFunctionDecl(x as FunctionDecl);
 			} else {
@@ -533,7 +533,7 @@ abstract class AstVisitor {
 	}
 	visitFunctionBody(functionBody: FunctionBody): any {
 		let res: any;
-		for (let x of functionBody.stmts) {
+		for (const x of functionBody.stmts) {
 			res = this.visitFunctionCall(x);
 		}
 		return res;
@@ -554,8 +554,8 @@ class RefResolver extends AstVisitor {
 	prog: Prog | null = null;
 	visitProg(prog: Prog) {
 		this.prog = prog;
-		for (let x of prog.stmts) {
-			let functionCall = x as FunctionCall;
+		for (const x of prog.stmts) {
+			const functionCall = x as FunctionCall;
 			if (typeof functionCall.params === 'object') {
 				this.resolveFunctionCall(prog, functionCall);
 			} else {
@@ -564,8 +564,8 @@ class RefResolver extends AstVisitor {
 		}
 	}
 	visitFunctionBody(functionBody: FunctionBody) {
-		if (this.prog != null) {
-			for (let x of functionBody.stmts) {
+		if (this.prog !== null) {
+			for (const x of functionBody.stmts) {
 				this.resolveFunctionCall(this.prog, x);
 			}
 		}
@@ -586,8 +586,8 @@ class RefResolver extends AstVisitor {
 	}
 
 	private findFunctionDecl(prog: Prog, name: string): FunctionDecl | null {
-		for (let x of prog.stmts) {
-			let functionDecl = x as FunctionDecl;
+		for (const x of prog.stmts) {
+			const functionDecl = x as FunctionDecl;
 			if (
 				typeof functionDecl.body === 'object' &&
 				functionDecl.name === name
@@ -604,8 +604,8 @@ class RefResolver extends AstVisitor {
  */
 class Intepretor extends AstVisitor {
 	visitProg(prog: Prog) {
-		for (let x of prog.stmts) {
-			let functioncall = x as FunctionCall;
+		for (const x of prog.stmts) {
+			const functioncall = x as FunctionCall;
 			if (typeof functioncall.params === 'object') {
 				this.runFunction(functioncall);
 			}
@@ -614,20 +614,20 @@ class Intepretor extends AstVisitor {
 
 	visitFunctionBody(functionBody: FunctionBody): any {
 		let retVal: any;
-		for (let x of functionBody.stmts) {
+		for (const x of functionBody.stmts) {
 			retVal = this.runFunction(x);
 		}
 	}
 
 	runFunction(functioncall: FunctionCall): any {
-		if (functioncall.name == 'println') {
+		if (functioncall.name === 'println') {
 			if (functioncall.params.length > 0) {
 				console.log(functioncall.params.join(''));
 			} else {
 				console.log();
 			}
 		} else {
-			if (functioncall.definition != null) {
+			if (functioncall.definition !== null) {
 				this.visitFunctionBody(functioncall.definition.body);
 			}
 		}
@@ -645,13 +645,13 @@ function compileAndRun(program: string) {
 	//词法分析
 	console.log('\ntokens:');
 	let tokenizer = new Tokenizer(new CharStream(program));
-	while (tokenizer.peek().kind != TokenKind.EOF) {
+	while (tokenizer.peek().kind !== TokenKind.EOF) {
 		console.log(tokenizer.next());
 	}
 	tokenizer = new Tokenizer(new CharStream(program)); //reset tokenizer,back to the first char.
 
 	//语法分析
-	let prog: Prog = new Parser(tokenizer).parseProg();
+	const prog: Prog = new Parser(tokenizer).parseProg();
 	console.log('\nAST:');
 	prog.dump('');
 
@@ -662,7 +662,7 @@ function compileAndRun(program: string) {
 
 	//运行程序
 	console.log('\nrun program:');
-	let retVal = new Intepretor().visitProg(prog);
+	const retVal = new Intepretor().visitProg(prog);
 	console.log('return value: ' + retVal);
 }
 
@@ -672,8 +672,8 @@ if (process.argv.length < 3) {
 	process.exit(1);
 }
 
-let fs = require('fs');
-let filename = process.argv[2];
+import fs from 'fs';
+const filename = process.argv[2];
 fs.readFile(filename, 'utf8', function (err: any, data: string) {
 	if (err) throw err;
 	compileAndRun(data);
