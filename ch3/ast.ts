@@ -148,12 +148,12 @@ export class ExpressionStatement extends Statement {
  */
 export class FunctionCall extends AstNode {
 	name: string;
-	parameters: Expression[];
+	params: Expression[];
 	decl: FunctionDecl | null = null; //refer to functionDecl
-	constructor(name: string, parameters: Expression[]) {
+	constructor(name: string, params: Expression[]) {
 		super();
 		this.name = name;
-		this.parameters = parameters;
+		this.params = params;
 	}
 	public accept(visitor: AstVisitor): any {
 		return visitor.visitFunctionCall(this);
@@ -165,7 +165,7 @@ export class FunctionCall extends AstNode {
 				this.name +
 				(this.decl !== null ? ', resolved' : ', not resolved')
 		);
-		this.parameters.forEach((x) => x.dump(prefix + '    '));
+		this.params.forEach((x) => x.dump(prefix + '    '));
 	}
 }
 

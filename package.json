@@ -20,8 +20,7 @@
 	"scripts": {
 		"esv": "./node_modules/.bin/esbuild --version",
 		"build": "node script/build.js",
-		"prepare": "husky install",
-		"lint-staged": "lint-staged"
+		"prepare": "husky install"
 	},
 	"lint-staged": {
 		"*.ts": [

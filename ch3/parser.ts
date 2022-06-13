@@ -340,9 +340,9 @@ export class Parser {
 		const params: Expression[] = [];
 		const t = this.scanner.next();
 		if (t.kind === TokenKind.Identifier) {
-			let t1 = this.scanner.peek();
+			let t1 = this.scanner.next();
 			if (t1.text === '(') {
-				t1 = this.scanner.next();
+				t1 = this.scanner.peek();
 				while (t1.text !== ')') {
 					const exp = this.parseExpression();
 					if (exp) {
