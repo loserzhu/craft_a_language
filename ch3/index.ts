@@ -147,7 +147,6 @@ const compileAndRun = (program: string) => {
 		console.log(tokenizer.next());
 	}
 	tokenizer = new Scanner(new CharStream(program)); //reset tokenizer
-
 	//parse
 	const prog: Prog = new Parser(tokenizer).parseProg();
 	console.log('\nAST:');

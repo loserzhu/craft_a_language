@@ -91,7 +91,7 @@ class Tokenizer {
 		}
 		const ch = this.stream.peek();
 		if (this.isLetter(ch) || this.isDigit(ch)) {
-			return this.parseIdentifer();
+			return this.parseIdentifier();
 		} else if (ch === '"') {
 			return this.parseStringLiteral();
 		} else if (['(', ')', '{', '}', ';', ','].includes(ch)) {
@@ -206,12 +206,12 @@ class Tokenizer {
 	/**
 	 * Identifier: [a-zA-Z_][a-zA-Z0-9_]* ;
 	 */
-	private parseIdentifer(): Token {
+	private parseIdentifier(): Token {
 		const token: Token = {kind: TokenKind.Identifier, text: ''};
 
 		while (
 			!this.stream.eof() &&
-			this.isLetterDigitorUnderScore(this.stream.peek())
+			this.isLetterDigitOrUnderScore(this.stream.peek())
 		) {
 			token.text += this.stream.next();
 		}
@@ -223,7 +223,7 @@ class Tokenizer {
 		return token;
 	}
 
-	private isLetterDigitorUnderScore(ch: string) {
+	private isLetterDigitOrUnderScore(ch: string) {
 		return (
 			(ch >= 'A' && ch <= 'Z') ||
 			(ch >= 'a' && ch <= 'z') ||
@@ -504,7 +504,7 @@ class Parser {
 					return null;
 				}
 			} else {
-				console.log('Excpecting "(" , while we got a ', t.text);
+				console.log('Expecting "(" , while we got a ', t.text);
 				return null;
 			}
 		} else {
@@ -639,7 +639,7 @@ class Intepretor extends AstVisitor {
 
 function compileAndRun(program: string) {
 	//源代码
-	console.log('source ccode:');
+	console.log('source code:');
 	console.log(program);
 
 	//词法分析

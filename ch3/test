@@ -2,10 +2,7 @@
 let myAge:number = 18;
 
 //10 years after
-function tenYearsLater() {
     myAge = myAge + 10;
-}
 
-tenYearsLater();
 println("myAge is: ");
 println(myAge);

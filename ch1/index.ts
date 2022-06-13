@@ -45,7 +45,7 @@ const tokenArray: Token[] = [
 
 // super tiny tokenizer
 class Tokenizer {
-	private tokens: Token[];
+	private readonly tokens: Token[];
 	private pos = 0;
 	constructor(tokens: Token[]) {
 		this.tokens = tokens;
@@ -81,11 +81,7 @@ abstract class AstNode {
  */
 abstract class Statement extends AstNode {
 	static isStatementNode(node: any): node is Statement {
-		if (!node) {
-			return false;
-		} else {
-			return true;
-		}
+		return !!node;
 	}
 }
 
@@ -137,11 +133,7 @@ class FunctionBody extends Statement {
 		if (!node) {
 			return false;
 		}
-		if (Object.getPrototypeOf(node) === FunctionBody.prototype) {
-			return true;
-		} else {
-			return false;
-		}
+		return Object.getPrototypeOf(node) === FunctionBody.prototype;
 	}
 	public dump(prefix: string): void {
 		console.log(prefix + 'FunctionBody');
@@ -168,11 +160,7 @@ class FunctionCall extends Statement {
 		if (!node) {
 			return false;
 		}
-		if (Object.getPrototypeOf(node) === FunctionCall.prototype) {
-			return true;
-		} else {
-			return false;
-		}
+		return Object.getPrototypeOf(node) === FunctionCall.prototype;
 	}
 
 	public dump(prefix: string): void {

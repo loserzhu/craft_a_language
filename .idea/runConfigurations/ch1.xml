@@ -1,0 +1,5 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ch1" type="NodeJSConfigurationType" path-to-node="wsl://Ubuntu-20.04@/home/coderzhu/.nvm/versions/node/v16.15.1/bin/node" path-to-js-file="ch1/index.js" working-dir="$PROJECT_DIR$">
+    <method v="2" />
+  </configuration>
+</component>

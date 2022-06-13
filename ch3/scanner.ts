@@ -124,6 +124,7 @@ export class Scanner {
 		}
 		return t;
 	}
+
 	peek() {
 		let t: Token | undefined = this.tokens[0];
 		if (typeof t === 'undefined') {
