@@ -138,13 +138,19 @@ export class Parser {
 				);
 				return null;
 			}
+		} else {
+			console.log(
+				'Expecting variable name in VariableDecl, while we meet ' +
+					t.text
+			);
+			return null;
 		}
 	}
 
 	/**
 	 * functionDecl: "function" Identifier "(" ")"  functionBody;
 	 */
-	parseFunctionDecl(): Statement {
+	parseFunctionDecl(): FunctionDecl | null {
 		this.scanner.next();
 
 		const t = this.scanner.next();
@@ -207,7 +213,7 @@ export class Parser {
 	/**
 	 * expressionStatement: expression ';' ;
 	 */
-	parseExpressionStatement(): Statement {
+	parseExpressionStatement(): ExpressionStatement | null {
 		const exp = this.parseExpression();
 		if (exp) {
 			const t = this.scanner.next();
@@ -222,6 +228,7 @@ export class Parser {
 		} else {
 			console.log('Error parsing ExpressionStatement');
 		}
+		return null;
 	}
 
 	/**
@@ -364,6 +371,7 @@ export class Parser {
 				return new FunctionCall(t.text, params);
 			}
 		}
+		return null;
 	}
 
 	/**
