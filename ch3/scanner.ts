@@ -152,7 +152,7 @@ export class Scanner {
 		} else if (ch === '"') {
 			return this.parseStringLiteral();
 		} else if (
-			['(', ')', '{', '}', '[', ']', ',', ':', '?', '@'].includes(ch)
+			['(', ')', '{', '}', '[', ']', ',', ';', ':', '?', '@'].includes(ch)
 		) {
 			this.stream.next();
 			return {kind: TokenKind.Seperator, text: ch};
@@ -187,7 +187,7 @@ export class Scanner {
 				while (this.isDigit(ch1)) {
 					ch = this.stream.next();
 					literal += ch;
-					ch1 = this.stream.next();
+					ch1 = this.stream.peek();
 				}
 			}
 
@@ -199,10 +199,11 @@ export class Scanner {
 				while (this.isDigit(ch1)) {
 					ch = this.stream.next();
 					literal += ch;
-					ch1 = this.stream.next();
+					ch1 = this.stream.peek();
 				}
 				return {kind: TokenKind.DecimalLiteral, text: literal};
 			}
+			return {kind: TokenKind.IntegerLiteral, text: literal};
 		} else if (ch === '.') {
 			this.stream.next();
 			let ch1 = this.stream.peek();
@@ -402,7 +403,7 @@ export class Scanner {
 		} else {
 			//drop unimplemented char
 			console.log(
-				"Unrecognized pattern meeting ': " +
+				'Unrecognized pattern meeting : ' +
 					ch +
 					"', at" +
 					this.stream.line +

@@ -16,7 +16,7 @@
  * parameterList : expression (',' expression)* ;
  */
 
-import {Token, TokenKind, Scanner} from './scanner';
+import {TokenKind, Scanner} from './scanner';
 import {
 	Block,
 	Prog,
@@ -53,7 +53,7 @@ export class Parser {
 	 */
 	parseStatementList(): Statement[] {
 		const stmts: Statement[] = [];
-		let t = this.scanner.next();
+		let t = this.scanner.peek();
 		// FOLLOW set of statementList: {"}",EOF}  (prog, functionBody)
 		while (t.kind !== TokenKind.EOF && t.text !== '}') {
 			const stmt = this.parseStatement();
@@ -62,7 +62,7 @@ export class Parser {
 			}
 			t = this.scanner.peek();
 		}
-		throw new Error('Method not implemented.');
+		return stmts;
 	}
 	/**
 	 * statement: variableDecl | functionDecl | expressionStatement;
