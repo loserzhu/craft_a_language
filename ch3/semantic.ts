@@ -25,7 +25,7 @@ import {
 	Variable
 } from './ast';
 
-class Symbol {
+class MySymbol {
 	name: string;
 	decl: Decl;
 	kind: SymKind;
@@ -47,17 +47,17 @@ export enum SymKind {
 //symbol table
 
 export class SymTable {
-	table: Map<string, symbol> = new Map();
+	table: Map<string, MySymbol> = new Map();
 
 	enter(name: string, decl: Decl, symType: SymKind) {
-		this.table.set(name, new Symbol(name, decl, symType));
+		this.table.set(name, new MySymbol(name, decl, symType));
 	}
 
 	hasSymbol(name: string) {
 		return this.table.has(name);
 	}
 
-	getSymbol(name: string): symbol | undefined {
+	getSymbol(name: string): MySymbol | undefined {
 		return this.table.get(name);
 	}
 }
