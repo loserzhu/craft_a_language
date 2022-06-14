@@ -638,11 +638,9 @@ class Intepretor extends AstVisitor {
 // entry
 
 function compileAndRun(program: string) {
-	//源代码
 	console.log('source code:');
 	console.log(program);
 
-	//词法分析
 	console.log('\ntokens:');
 	let tokenizer = new Tokenizer(new CharStream(program));
 	while (tokenizer.peek().kind !== TokenKind.EOF) {
@@ -650,17 +648,14 @@ function compileAndRun(program: string) {
 	}
 	tokenizer = new Tokenizer(new CharStream(program)); //reset tokenizer,back to the first char.
 
-	//语法分析
 	const prog: Prog = new Parser(tokenizer).parseProg();
 	console.log('\nAST:');
 	prog.dump('');
 
-	//语义分析
 	new RefResolver().visitProg(prog);
 	console.log('\nAST after resolving definition assignment');
 	prog.dump('');
 
-	//运行程序
 	console.log('\nrun program:');
 	const retVal = new Intepretor().visitProg(prog);
 	console.log('return value: ' + retVal);
