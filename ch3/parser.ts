@@ -16,24 +16,24 @@
  * parameterList : expression (',' expression)* ;
  */
 
-import {TokenKind, Scanner} from './scanner';
+import {Scanner, TokenKind} from './scanner';
 import {
+	Binary,
 	Block,
-	Prog,
-	VariableDecl,
-	FunctionDecl,
-	FunctionCall,
-	Statement,
+	DecimalLiteral,
 	Expression,
 	ExpressionStatement,
-	Binary,
+	FunctionCall,
+	FunctionDecl,
 	IntegerLiteral,
-	DecimalLiteral,
+	Prog,
+	Statement,
 	StringLiteral,
-	Variable
+	Variable,
+	VariableDecl
 } from './ast';
 
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
 //Parser
 
 export class Parser {
@@ -264,8 +264,7 @@ export class Parser {
 				this.scanner.next();
 				const exp2 = this.parseBinary(tprec);
 				if (exp2 !== null) {
-					const exp: Binary = new Binary(t.text, exp1, exp2);
-					exp1 = exp;
+					exp1 = new Binary(t.text, exp1, exp2);
 					t = this.scanner.peek();
 					tprec = this.getPrec(t.text);
 				} else {
