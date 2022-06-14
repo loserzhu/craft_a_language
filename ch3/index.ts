@@ -38,6 +38,10 @@ class Intepretor extends AstVisitor {
 		return typeof (v as LeftValue).variable === 'object';
 	}
 
+	visitFunctionDecl(functionDecl: FunctionDecl): any {
+		return null;
+	}
+
 	visitFunctionCall(functionCall: FunctionCall) {
 		if (functionCall.name === 'println') {
 			if (functionCall.params.length > 0) {
@@ -156,7 +160,7 @@ const compileAndRun = (program: string) => {
 	const symTable = new SymTable(); // init symbol table
 	new Enter(symTable).visit(prog); // build symbol table
 	new RefResolver(symTable).visit(prog); // resolve reference
-	console.log('\nAST after resloving reference:');
+	console.log('\nAST after resolving reference:');
 	prog.dump('');
 
 	//run program
