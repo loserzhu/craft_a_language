@@ -351,7 +351,6 @@ export class Scanner {
 				return this.parseStringLiteral();
 			} else if (ch === '(') {
 				this.stream.next();
-				const se = TokenKind.Seperator;
 				return new Token(
 					TokenKind.Seperator,
 					ch,
@@ -814,7 +813,25 @@ export class Scanner {
 		const pos = this.stream.getPosition();
 		const token = new Token(TokenKind.Identifier, '', pos);
 
-		throw new Error();
+		token.text += this.stream.next();
+
+		//read chars
+		while (
+			!this.stream.eof() &&
+			this.isLetterDigitOrUnderScore(this.stream.peek())
+		) {
+			token.text += this.stream.next();
+		}
+
+		pos.end = this.stream.pos + 1;
+
+		//recognize keywords
+		if (this.KeywordMap.has(token.text)) {
+			token.kind = TokenKind.Keyword;
+			token.code = this.KeywordMap.get(token.text) as Keyword;
+		}
+
+		return token;
 	}
 
 	private parseStringLiteral(): Token {
