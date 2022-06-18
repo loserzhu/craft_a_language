@@ -16,6 +16,7 @@
 	"plugins": ["@typescript-eslint"],
 	"rules": {
 		"no-constant-condition": 1,
-		"@typescript-eslint/ban-ts-ignore": "off"
+		"@typescript-eslint/ban-ts-ignore": "off",
+		"@typescript-eslint/no-empty-function": "off"
 	}
 }

@@ -236,9 +236,9 @@ export class CharStream {
 /**
  * lexical scanner: accept a char stream and identify the lexical elements(or tokens) by demand.
  * operations:
- * next(): return current token, step into next one.   LL(1)
- * peek(): return current token without moving pointer.  LL(2)
- * peek2(): return the next token without moving pointer;
+ * next(): pop current token from the buffer.
+ * peek(): return current token from in the buffer. LL(1)
+ * peek2(): return the next token from in the buffer. LL(2)
  */
 export class Scanner {
 	stream: CharStream;

@@ -46,8 +46,10 @@ import {
 	ErrorStmt,
 	Expression,
 	ExpressionStatement,
+	ForStatement,
 	FunctionCall,
 	FunctionDecl,
+	IfStatement,
 	IntegerLiteral,
 	ParameterList,
 	Prog,
@@ -203,7 +205,7 @@ export class Parser {
 	 * @private
 	 */
 	private parseStatementList(): Statement[] {
-		const token = this.scanner.peek();
+		let token = this.scanner.peek();
 		const stmts: Statement[] = [];
 		while (
 			token.kind !== TokenKind.EOF &&
@@ -211,7 +213,7 @@ export class Parser {
 		) {
 			const stmt = this.parseStatement();
 			stmts.push(stmt);
-			this.scanner.next();
+			token = this.scanner.peek();
 		}
 		return stmts;
 	}
@@ -230,8 +232,13 @@ export class Parser {
 		}
 		if (t.code === Keyword.Return) {
 			return this.parseReturnStatement();
+		} else if (t.code === Keyword.If) {
+			return this.parseIfStatement();
+		} else if (t.code === Keyword.For) {
+			return this.parseForStatement();
 		}
 		if (t.code === Seperator.OpenBrace) {
+			// '{'
 			return this.parseBlock();
 		}
 		if (
@@ -239,9 +246,8 @@ export class Parser {
 			t.kind === TokenKind.DecimalLiteral ||
 			t.kind === TokenKind.IntegerLiteral ||
 			t.kind === TokenKind.StringLiteral ||
-			t.code === Seperator.OpenParen
+			t.code === Seperator.OpenParen //  '('
 		) {
-			//'('
 			return this.parseExpressionStatement();
 		}
 		this.addError(
@@ -385,7 +391,8 @@ export class Parser {
 
 		let callSignature: CallSignature;
 		let t1 = this.scanner.peek();
-		if (t1.code === Seperator.OpenBrace) {
+		if (t1.code === Seperator.OpenParen) {
+			// '('
 			callSignature = this.parseCallSignature();
 		} else {
 			this.addError(
@@ -806,6 +813,153 @@ export class Parser {
 			this.scanner.getLastPos(),
 			name,
 			params
+		);
+	}
+
+	/**
+	 * ifStatement : 'if' '(' expression ')' statement ('else' statement)? ;
+	 * @private
+	 */
+	private parseIfStatement(): Statement {
+		const beginPos = this.scanner.getNextPos();
+		this.scanner.next();
+		let isErrorNode = false;
+		let condition: Expression;
+		if (this.scanner.peek().code === Seperator.OpenParen) {
+			this.scanner.next();
+			condition = this.parseExpression();
+			if (this.scanner.peek().code === Seperator.CloseParen) {
+				this.scanner.next();
+			} else {
+				this.addError(
+					"Expecting ')' after if condition.",
+					this.scanner.getLastPos()
+				);
+				this.skip();
+				isErrorNode = true;
+			}
+		} else {
+			this.addError(
+				"Expecting '(' after 'if'.",
+				this.scanner.getLastPos()
+			);
+			this.skip();
+			condition = new ErrorExp(beginPos, this.scanner.getLastPos());
+		}
+		const stmt = this.parseStatement();
+		let elseStmt: Statement | null = null;
+		if (this.scanner.peek().code === Keyword.Else) {
+			this.scanner.next();
+			elseStmt = this.parseStatement();
+		}
+
+		return new IfStatement(
+			beginPos,
+			this.scanner.getLastPos(),
+			condition,
+			stmt,
+			elseStmt,
+			isErrorNode
+		);
+	}
+
+	private parseForStatement(): Statement {
+		const beginPos = this.scanner.getNextPos();
+		this.scanner.next();
+		let isErrorNode = false;
+		let init: Expression | VariableDecl | null = null;
+		let terminate: Expression | null = null;
+		let increment: Expression | null = null;
+		if (this.scanner.peek().code === Seperator.OpenParen) {
+			this.scanner.next();
+
+			// init
+			if (this.scanner.peek().code !== Seperator.SemiColon) {
+				if (this.scanner.peek().code === Keyword.Let) {
+					this.scanner.next();
+					init = this.parseVariableDecl();
+				} else {
+					init = this.parseExpression();
+				}
+			}
+
+			if (this.scanner.peek().code === Seperator.SemiColon) {
+				this.scanner.next();
+			} else {
+				this.addError(
+					"Expecting ';' after init part of for statement.",
+					this.scanner.getLastPos()
+				);
+				this.skip();
+				//跳过后面的';'
+				if (this.scanner.peek().code === Seperator.SemiColon) {
+					//';'
+					this.scanner.next();
+				}
+				isErrorNode = true;
+			}
+
+			//terminate
+			if (this.scanner.peek().code !== Seperator.SemiColon) {
+				//';'
+				terminate = this.parseExpression();
+			}
+			if (this.scanner.peek().code === Seperator.SemiColon) {
+				//';'
+				this.scanner.next();
+			} else {
+				this.addError(
+					"Expecting ';' after terminate part of for statement.",
+					this.scanner.getLastPos()
+				);
+				this.skip();
+				//跳过后面的';'
+				if (this.scanner.peek().code === Seperator.SemiColon) {
+					//';'
+					this.scanner.next();
+				}
+				isErrorNode = true;
+			}
+
+			//increment
+			//increment
+			if (this.scanner.peek().code !== Seperator.CloseParen) {
+				//')'
+				increment = this.parseExpression();
+			}
+			if (this.scanner.peek().code === Seperator.CloseParen) {
+				//')'
+				this.scanner.next();
+			} else {
+				this.addError(
+					"Expecting ')' after increment part of for statement.",
+					this.scanner.getLastPos()
+				);
+				this.skip();
+				//跳过后面的')'
+				if (this.scanner.peek().code === Seperator.CloseParen) {
+					//')'
+					this.scanner.next();
+				}
+				isErrorNode = true;
+			}
+		} else {
+			this.addError(
+				"Expecting '(' after 'for'.",
+				this.scanner.getLastPos()
+			);
+			this.skip();
+			isErrorNode = true;
+		}
+		const stmt = this.parseStatement();
+		return new ForStatement(
+			beginPos,
+			this.scanner.getLastPos(),
+			init,
+			terminate,
+			increment,
+			stmt,
+			isErrorNode
 		);
 	}
 }

@@ -3,5 +3,6 @@
 *.js.map
 !script/*.js
 !.vscode/
+.idea/*
 yarn.lock
 node_modules/
