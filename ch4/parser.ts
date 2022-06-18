@@ -316,7 +316,7 @@ export class Parser {
 
 			t1 = this.scanner.peek();
 			// assignment (optional)
-			if ((t1.code = Op.Assign)) {
+			if (t1.code === Op.Assign) {
 				this.scanner.next();
 				init = this.parseExpression();
 			}
