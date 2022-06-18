@@ -227,12 +227,14 @@ export class ForStatement extends Statement {
 	condition: Expression | null = null;
 	increment: Expression | null = null;
 	stmt: Statement;
+
+	scope: Scope | null = null;
 	constructor(
 		beginPos: Position,
 		endPos: Position,
 		init: Expression | VariableDecl | null,
 		termination: Expression | null,
-		increment: Expression,
+		increment: Expression | null,
 		stmt: Statement,
 		isErrorNode = false
 	) {

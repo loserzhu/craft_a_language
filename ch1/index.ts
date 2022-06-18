@@ -66,7 +66,7 @@ class Tokenizer {
 }
 
 ////////////////////////////////////////////////////////////////////
-// parsing (including astnode data structure)
+// parsing (including AstNode data structure)
 
 /**
  * ast class
@@ -413,9 +413,9 @@ class RefResolver extends AstVisitor {
 }
 
 /**
- * intepretor. visit the ast tree and run the program.
+ * interpreter. visit the ast tree and run the program.
  */
-class Intepretor extends AstVisitor {
+class Interpreter extends AstVisitor {
 	visitProg(prog: Prog) {
 		for (const x of prog.stmts) {
 			const functioncall = x as FunctionCall;
@@ -466,7 +466,7 @@ const compileAndRun = () => {
 	prog.dump('');
 
 	console.log('\nrun program');
-	new Intepretor().visitProg(prog);
+	new Interpreter().visitProg(prog);
 };
 
 compileAndRun();

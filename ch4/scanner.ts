@@ -236,9 +236,9 @@ export class CharStream {
 /**
  * lexical scanner: accept a char stream and identify the lexical elements(or tokens) by demand.
  * operations:
- * next(): return current token, step into next one.   LL(1)
- * peek(): return current token without moving pointer.  LL(2)
- * peek2(): return the next token without moving pointer;
+ * next(): pop current token from the buffer.
+ * peek(): return current token from in the buffer. LL(1)
+ * peek2(): return the next token from in the buffer. LL(2)
  */
 export class Scanner {
 	stream: CharStream;
@@ -351,7 +351,6 @@ export class Scanner {
 				return this.parseStringLiteral();
 			} else if (ch === '(') {
 				this.stream.next();
-				const se = TokenKind.Seperator;
 				return new Token(
 					TokenKind.Seperator,
 					ch,
@@ -814,7 +813,25 @@ export class Scanner {
 		const pos = this.stream.getPosition();
 		const token = new Token(TokenKind.Identifier, '', pos);
 
-		throw new Error();
+		token.text += this.stream.next();
+
+		//read chars
+		while (
+			!this.stream.eof() &&
+			this.isLetterDigitOrUnderScore(this.stream.peek())
+		) {
+			token.text += this.stream.next();
+		}
+
+		pos.end = this.stream.pos + 1;
+
+		//recognize keywords
+		if (this.KeywordMap.has(token.text)) {
+			token.kind = TokenKind.Keyword;
+			token.code = this.KeywordMap.get(token.text) as Keyword;
+		}
+
+		return token;
 	}
 
 	private parseStringLiteral(): Token {

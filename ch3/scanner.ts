@@ -63,9 +63,9 @@ export class CharStream {
 /**
  * tokenizer
  * accept a char stream and produce tokens. available operation:
- * next(): return current token, step into next one.
- * peek(): return current token without moving pointer.
- * peek2(): return the next token without moving pointer;
+ * next(): pop current token from the buffer.
+ * peek(): return current token from in the buffer.
+ * peek2(): return the next token from in the buffer.
  */
 export class Scanner {
 	tokens: Token[] = [];
@@ -335,8 +335,8 @@ export class Scanner {
 			const ch1 = this.stream.peek();
 			if (ch1 === '=') {
 				this.stream.next();
-				let ch1 = this.stream.peek();
-				if ((ch1 = '=')) {
+				const ch1 = this.stream.peek();
+				if (ch1 === '=') {
 					this.stream.next();
 					return {kind: TokenKind.Operator, text: '==='};
 				} else {
@@ -355,8 +355,8 @@ export class Scanner {
 			const ch1 = this.stream.peek();
 			if (ch1 === '=') {
 				this.stream.next();
-				let ch1 = this.stream.peek();
-				if ((ch1 = '=')) {
+				const ch1 = this.stream.peek();
+				if (ch1 === '=') {
 					this.stream.next();
 					return {kind: TokenKind.Operator, text: '!=='};
 				} else {
