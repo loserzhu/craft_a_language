@@ -32,7 +32,7 @@ import {ScopeDumper} from './scope';
 /**
  * 遍历AST，执行函数调用。
  */
-class Intepretor extends AstVisitor {
+class Interpreter extends AstVisitor {
 	//调用栈
 	callStack: StackFrame[] = [];
 
@@ -456,7 +456,7 @@ function compileAndRun(fileName: string, program: string) {
 	//运行程序
 	console.log('\n通过AST解释器运行程序:');
 	const date1 = new Date();
-	const retVal = new Intepretor().visit(prog);
+	const retVal = new Interpreter().visit(prog);
 	const date2 = new Date();
 	console.log('程序返回值：');
 	// console.log(retVal);
