@@ -186,6 +186,202 @@ export class BCGenerator extends AstVisitor {
 		return ret;
 	}
 
+	visitVariableDecl(
+		variableDecl: VariableDecl,
+		additional: any = undefined
+	): any {
+		let code: number[] = [];
+		if (variableDecl.init !== null) {
+			const ret = this.visit(variableDecl.init) as number[];
+			code = code.concat(ret);
+			code = code.concat(this.setVariableValue(variableDecl.sym));
+		}
+		return code;
+	}
+
+	visitReturnStatement(
+		returnStatement: ReturnStatement,
+		additional: any = undefined
+	): any {
+		let code: number[] = [];
+		if (returnStatement.exp !== null) {
+			const code1: number[] = this.visit(returnStatement.exp);
+			code = code.concat(code1);
+			code.push(OpCode.ireturn);
+			return code;
+		} else {
+			code.push(OpCode.return);
+			return code;
+		}
+	}
+
+	visitFunctionCall(
+		functionCall: FunctionCall,
+		additional: any = undefined
+	): any {
+		let code: number[] = [];
+		for (const param of functionCall.arguments) {
+			const code1 = this.visit(param);
+			code = code.concat(code1 as number[]);
+		}
+		const index = this.m.consts.indexOf(functionCall.sym);
+
+		code.push(OpCode.invokestatic);
+		code.push(index >> 8);
+		code.push(index);
+		return code;
+	}
+
+	visitIfStatement(ifStmt: IfStatement, additional: any = undefined): any {
+		let code: number[] = [];
+		const code_condition = this.visit(ifStmt.condition);
+		this.inExpression = false;
+
+		const code_ifBlock = this.visit(ifStmt.stmt);
+		this.inExpression = false;
+
+		const code_elseBlock =
+			ifStmt.elseStmt === null ? [] : this.visit(ifStmt.elseStmt);
+		this.inExpression = false;
+
+		const offset_ifBlock = code_condition.length + 3;
+		const offset_elseBlock =
+			code_condition.length + code_ifBlock.length + 6;
+		const offset_nextStmt = offset_elseBlock + code_elseBlock.length;
+
+		this.addOffsetToJumpOp(code_ifBlock, offset_ifBlock);
+		this.addOffsetToJumpOp(code_elseBlock, offset_elseBlock);
+
+		code = code.concat(code_condition);
+		code.push(OpCode.ifeq);
+		code.push(offset_elseBlock >> 8);
+		code.push(offset_elseBlock);
+
+		code = code.concat(code_ifBlock);
+
+		code.push(OpCode.goto);
+		code.push(offset_nextStmt >> 8);
+		code.push(offset_nextStmt);
+
+		code = code.concat(code_elseBlock);
+
+		return code;
+	}
+
+	visitForStatement(forStmt: ForStatement, additional: any = undefined): any {
+		let code: number[] = [];
+		const code_init = forStmt.init === null ? [] : this.visit(forStmt.init);
+		this.inExpression = false;
+
+		const code_condition =
+			forStmt.condition === null ? [] : this.visit(forStmt.condition);
+		this.inExpression = false;
+
+		const code_increment =
+			forStmt.increment === null ? [] : this.visit(forStmt.increment);
+		this.inExpression = false;
+
+		const code_stmt = forStmt === null ? [] : this.visit(forStmt.stmt);
+		this.inExpression = false;
+
+		const offset_condition = code_init.length;
+		const offset_stmt =
+			offset_condition +
+			code_condition.length +
+			(code_condition.length > 0 ? 3 : 0);
+		const offset_increment = offset_stmt + code_stmt.length;
+		const offset_nextStmt = offset_increment + code_increment.length + 3;
+
+		this.addOffsetToJumpOp(code_condition, offset_condition);
+		this.addOffsetToJumpOp(code_increment, offset_increment);
+		this.addOffsetToJumpOp(code_stmt, offset_stmt);
+
+		code = code.concat(code_init);
+
+		if (code_condition.length > 0) {
+			code = code.concat(code_condition);
+			code.push(OpCode.ifeq);
+			code.push(offset_nextStmt >> 8);
+			code.push(offset_nextStmt);
+		}
+
+		code = code.concat(code_stmt);
+		code = code.concat(code_increment);
+
+		code.push(OpCode.goto);
+		code.push(offset_condition >> 8);
+		code.push(offset_condition);
+
+		return code;
+	}
+
+	visitVariable(variable: Variable, additional: any = undefined): any {
+		if (variable.isLeftValue) {
+			return variable.sym;
+		}
+		return this.getVariableValue(variable.sym);
+	}
+
+	private setVariableValue(sym: VarSymbol | null) {
+		const code: number[] = [];
+		if (sym !== null) {
+			const index = this.functionSymbol?.vars.indexOf(sym);
+			assert(
+				index !== -1,
+				'生成字节码时(设置变量值)，在函数符号中查找变量失败！'
+			);
+			//根据不同的下标生成指令，尽量生成压缩指令
+			switch (index) {
+				case 0:
+					code.push(OpCode.istore_0);
+					break;
+				case 1:
+					code.push(OpCode.istore_1);
+					break;
+				case 2:
+					code.push(OpCode.istore_2);
+					break;
+				case 3:
+					code.push(OpCode.istore_3);
+					break;
+				default:
+					code.push(OpCode.istore);
+					code.push(index as number);
+			}
+		}
+		return code;
+	}
+
+	private getVariableValue(sym: VarSymbol | null) {
+		const code: number[] = [];
+		if (sym !== null) {
+			const index = this.functionSymbol?.vars.indexOf(sym);
+			assert(
+				index !== -1,
+				'生成字节码时（获取变量的值），在函数符号中获取本地变量下标失败！'
+			);
+			//根据不同的下标生成指令，尽量生成压缩指令
+			switch (index) {
+				case 0:
+					code.push(OpCode.iload_0);
+					break;
+				case 1:
+					code.push(OpCode.iload_1);
+					break;
+				case 2:
+					code.push(OpCode.iload_2);
+					break;
+				case 3:
+					code.push(OpCode.iload_3);
+					break;
+				default:
+					code.push(OpCode.iload);
+					code.push(index as number);
+			}
+		}
+		return code;
+	}
+
 	/**
 	 *
 	 * @param code
@@ -275,5 +471,35 @@ export class BCGenerator extends AstVisitor {
 			}
 		}
 		return code;
+	}
+}
+
+class StackFrame {
+	//对应的函数，用来找到代码
+	funtionSym: FunctionSymbol;
+
+	//返回地址
+	returnIndex = 0;
+
+	//本地变量
+	localVars: number[];
+
+	//操作数栈
+	oprandStack: any[] = [];
+
+	constructor(funtionSym: FunctionSymbol) {
+		this.funtionSym = funtionSym;
+		this.localVars = new Array(funtionSym.vars.length);
+	}
+}
+
+export class VM {
+	callStack: StackFrame[] = [];
+
+	constructor() {}
+
+	execute(bcModule: BCModule): number {
+		//TODO
+		return 0;
 	}
 }
