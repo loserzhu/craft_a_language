@@ -25,6 +25,7 @@ import {Parser} from './parser';
 import {SemanticAnalyer} from './semantic';
 import {InternalSymbol, VarSymbol} from './symbol';
 import {ScopeDumper} from './scope';
+import {BCGenerator, BCModule, BCModuleDumper, VM} from './vm';
 
 /////////////////////////////////////////////////////////////////////////
 // 解释器
@@ -437,7 +438,7 @@ function compileAndRun(fileName: string, program: string) {
 	//语义分析
 	const semanticAnalyer = new SemanticAnalyer();
 	semanticAnalyer.execute(prog);
-	console.log('\n符号表: ');
+	console.log('\n符号表：');
 	new ScopeDumper().visit(prog, '');
 	console.log('\n语义分析后的AST，注意变量和函数已被消解:');
 	astDumper.visit(prog, '');
@@ -455,9 +456,25 @@ function compileAndRun(fileName: string, program: string) {
 
 	//运行程序
 	console.log('\n通过AST解释器运行程序:');
-	const date1 = new Date();
-	const retVal = new Intepretor().visit(prog);
-	const date2 = new Date();
+	let date1 = new Date();
+	let retVal = new Intepretor().visit(prog);
+	let date2 = new Date();
+	console.log('程序返回值：');
+	// console.log(retVal);
+	console.log('耗时：' + (date2.getTime() - date1.getTime()) / 1000 + '秒');
+
+	// 用vm运行程序
+	console.log('\n编译成字节码:');
+	const generator = new BCGenerator();
+	const bcModule = generator.visit(prog) as BCModule;
+	const bcModuleDumper = new BCModuleDumper();
+	bcModuleDumper.dump(bcModule);
+	// console.log(bcModule);
+
+	console.log('\n使用栈机运行程序:');
+	date1 = new Date();
+	retVal = new VM().execute(bcModule);
+	date2 = new Date();
 	console.log('程序返回值：');
 	// console.log(retVal);
 	console.log('耗时：' + (date2.getTime() - date1.getTime()) / 1000 + '秒');
@@ -465,8 +482,6 @@ function compileAndRun(fileName: string, program: string) {
 
 //处理命令行参数，从文件里读取源代码
 import * as process from 'process';
-import {assert} from 'console';
-import {stringify} from 'querystring';
 
 // 要求命令行的第三个参数，一定是一个文件名。
 if (process.argv.length < 3) {

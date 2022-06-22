@@ -146,6 +146,7 @@ export class BCGenerator extends AstVisitor {
 			this.m._main = this.functionSymbol;
 			this.functionSymbol.byteCode = this.visitBlock(prog) as number[];
 		}
+		return this.m;
 	}
 
 	visitFunctionDecl(
@@ -311,6 +312,139 @@ export class BCGenerator extends AstVisitor {
 		code.push(offset_condition >> 8);
 		code.push(offset_condition);
 
+		return code;
+	}
+
+	visitBinary(bi: Binary): any {
+		this.inExpression = true;
+
+		let code: number[];
+		const code1 = this.visit(bi.exp1);
+		const code2 = this.visit(bi.exp2);
+
+		let address1 = 0;
+		let address2 = 0;
+		let tempCode = 0;
+
+		////1.处理赋值
+		if (bi.op === Op.Assign) {
+			const varSymbol = code1 as VarSymbol;
+			console.log('varSymbol:');
+			console.log(varSymbol);
+			//加入右子树的代码
+			code = code2;
+			//加入istore代码
+			code = code.concat(this.setVariableValue(varSymbol));
+		}
+		////2.处理其他二元运算
+		else {
+			//加入左子树的代码
+			code = code1;
+			//加入右子树的代码
+			code = code.concat(code2);
+			//加入运算符的代码
+			switch (bi.op) {
+				case Op.Plus: //'+'
+					if (bi.theType === SysTypes.String) {
+						code.push(OpCode.sadd);
+					} else {
+						code.push(OpCode.iadd);
+					}
+					break;
+				case Op.Minus: //'-'
+					code.push(OpCode.isub);
+					break;
+				case Op.Multiply: //'*'
+					code.push(OpCode.imul);
+					break;
+				case Op.Divide: //'/'
+					code.push(OpCode.idiv);
+					break;
+				case Op.G: //'>'
+				case Op.GE: //'>='
+				case Op.L: //'<'
+				case Op.LE: //'<='
+				case Op.EQ: //'=='
+				case Op.NE: //'!='
+					if (bi.op === Op.G) {
+						tempCode = OpCode.if_icmple;
+					} else if (bi.op === Op.GE) {
+						tempCode = OpCode.if_icmplt;
+					} else if (bi.op === Op.L) {
+						tempCode = OpCode.if_icmpge;
+					} else if (bi.op === Op.LE) {
+						tempCode = OpCode.if_icmpgt;
+					} else if (bi.op === Op.EQ) {
+						tempCode = OpCode.if_icmpne;
+					} else if (bi.op === Op.NE) {
+						tempCode = OpCode.if_icmpeq;
+					}
+
+					address1 = code.length + 7;
+					address2 = address1 + 1;
+					code.push(tempCode);
+					code.push(address1 >> 8);
+					code.push(address1);
+					code.push(OpCode.iconst_1);
+					code.push(OpCode.goto);
+					code.push(address2 >> 8);
+					code.push(address2);
+					code.push(OpCode.iconst_0);
+					break;
+				default:
+					console.log('Unsupported binary operation: ' + bi.op);
+					return [];
+			}
+		}
+
+		return code;
+	}
+
+	visitUnary(u: Unary): any {
+		let code: number[] = [];
+		const v = this.visit(u.exp);
+		let varSymbol: VarSymbol;
+		let varIndex: number;
+
+		if (u.op === Op.Inc) {
+			varSymbol = v as VarSymbol;
+			varIndex = this.functionSymbol?.vars.indexOf(varSymbol) as number;
+			if (u.isPrefix) {
+				code.push(OpCode.iinc);
+				code.push(varIndex);
+				code.push(1);
+				if (this.inExpression) {
+					code = code.concat(this.getVariableValue(varSymbol));
+				}
+			} else {
+				if (this.inExpression) {
+					code = code.concat(this.getVariableValue(varSymbol));
+				}
+				code.push(OpCode.iinc);
+				code.push(varIndex);
+				code.push(1);
+			}
+		} else if (u.op === Op.Dec) {
+			varSymbol = v as VarSymbol;
+			varIndex = this.functionSymbol?.vars.indexOf(varSymbol) as number;
+			if (u.isPrefix) {
+				code.push(OpCode.iinc);
+				code.push(varIndex);
+				code.push(-1);
+				if (this.inExpression) {
+					code = code.concat(this.getVariableValue(varSymbol));
+				}
+			} else {
+				if (this.inExpression) {
+					code = code.concat(this.getVariableValue(varSymbol));
+				}
+				code.push(OpCode.iinc);
+				code.push(varIndex);
+				code.push(-1);
+			}
+		} else {
+			console.log('Unsupported unary oprator :' + u.op);
+		}
 		return code;
 	}
 
@@ -525,14 +659,16 @@ export class VM {
 		let byte2 = 0;
 		let vleft: any;
 		let vright: any;
-		const tempCodeIndex = 0;
 		let constIndex = 0;
 		let numValue = 0;
 		let strValue = '';
 		let returnValue: any = undefined;
+		let varIndex = 0;
+		let offset = 0;
 		// TODO is this really unneeded?
 		// let functionSym: FunctionSymbol;
 
+		// eslint-disable-next-line no-constant-condition
 		while (true) {
 			switch (opCode) {
 				case OpCode.iconst_0:
@@ -581,7 +717,79 @@ export class VM {
 					frame.oprandStack.push(strValue);
 					opCode = code[++codeIndex];
 					continue;
-				// TODO finish the rest of Opcode
+				case OpCode.iload:
+					frame.oprandStack.push(frame.localVars[code[++codeIndex]]);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iload_0:
+					frame.oprandStack.push(frame.localVars[0]);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iload_1:
+					frame.oprandStack.push(frame.localVars[1]);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iload_2:
+					frame.oprandStack.push(frame.localVars[2]);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iload_3:
+					frame.oprandStack.push(frame.localVars[3]);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.istore:
+					frame.localVars[code[++codeIndex]] =
+						frame.oprandStack.pop();
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.istore_0:
+					frame.localVars[0] = frame.oprandStack.pop();
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.istore_1:
+					frame.localVars[1] = frame.oprandStack.pop();
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.istore_2:
+					frame.localVars[2] = frame.oprandStack.pop();
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.istore_3:
+					frame.localVars[3] = frame.oprandStack.pop();
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iadd:
+				case OpCode.sadd:
+					vright = frame.oprandStack.pop();
+					vleft = frame.oprandStack.pop();
+					frame.oprandStack.push(vleft + vright);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.isub:
+					vright = frame.oprandStack.pop();
+					vleft = frame.oprandStack.pop();
+					frame.oprandStack.push(vleft - vright);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.imul:
+					frame.oprandStack.push(
+						frame.oprandStack.pop() * frame.oprandStack.pop()
+					);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.idiv:
+					vright = frame.oprandStack.pop();
+					vleft = frame.oprandStack.pop();
+					frame.oprandStack.push(vleft / vright);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iinc:
+					varIndex = code[++codeIndex];
+					offset = code[++codeIndex];
+					frame.localVars[varIndex] =
+						frame.localVars[varIndex] + offset;
+					opCode = code[++codeIndex];
+					continue;
 				case OpCode.ireturn:
 				case OpCode.return:
 					returnValue = undefined;
@@ -658,13 +866,81 @@ export class VM {
 							return -1;
 						}
 					}
-				// eslint-disable-next-line no-fallthrough
+					continue;
+				case OpCode.ifeq:
+					byte1 = code[++codeIndex];
+					byte2 = code[++codeIndex];
+					if (frame.oprandStack.pop() === 0) {
+						codeIndex = (byte1 << 8) | byte2;
+						opCode = code[codeIndex];
+					} else {
+						opCode = code[++codeIndex];
+					}
+					continue;
+				case OpCode.ifne:
+					byte1 = code[++codeIndex];
+					byte2 = code[++codeIndex];
+					if (frame.oprandStack.pop() !== 0) {
+						codeIndex = (byte1 << 8) | byte2;
+						opCode = code[codeIndex];
+					} else {
+						opCode = code[++codeIndex];
+					}
+					continue;
+				case OpCode.if_icmplt:
+					byte1 = code[++codeIndex];
+					byte2 = code[++codeIndex];
+					vright = frame.oprandStack.pop();
+					vleft = frame.oprandStack.pop();
+					if (vleft < vright) {
+						codeIndex = (byte1 << 8) | byte2;
+						opCode = code[codeIndex];
+					} else {
+						opCode = code[++codeIndex];
+					}
+					continue;
+				case OpCode.if_icmpge:
+					byte1 = code[++codeIndex];
+					byte2 = code[++codeIndex];
+					vright = frame.oprandStack.pop();
+					vleft = frame.oprandStack.pop();
+					if (vleft >= vright) {
+						codeIndex = (byte1 << 8) | byte2;
+						opCode = code[codeIndex];
+					} else {
+						opCode = code[++codeIndex];
+					}
+					continue;
+				case OpCode.if_icmpgt:
+					byte1 = code[++codeIndex];
+					byte2 = code[++codeIndex];
+					if (vleft > vright) {
+						codeIndex = (byte1 << 8) | byte2;
+						opCode = code[codeIndex];
+					} else {
+						opCode = code[codeIndex];
+					}
+					continue;
+				case OpCode.if_icmple:
+					byte1 = code[++codeIndex];
+					byte2 = code[++codeIndex];
+					if (vleft <= vright) {
+						codeIndex = (byte1 << 8) | byte2;
+						opCode = code[codeIndex];
+					} else {
+						opCode = code[++codeIndex];
+					}
+					continue;
+				case OpCode.goto:
+					byte1 = code[++codeIndex];
+					byte2 = code[++codeIndex];
+					codeIndex = (byte1 << 8) | byte2;
+					opCode = code[codeIndex];
+					continue;
 				default:
 					console.log('Unknown op code: ' + opCode.toString(16));
 					return -2;
 			}
 		}
-
-		return 0;
 	}
 }
