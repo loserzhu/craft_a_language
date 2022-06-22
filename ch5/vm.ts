@@ -39,7 +39,6 @@ import {
 	Type,
 	SysTypes
 } from './types';
-import {Symbol} from '../ch9/symbol';
 
 /**
  * 指令的编码
@@ -500,6 +499,172 @@ export class VM {
 
 	execute(bcModule: BCModule): number {
 		//TODO
+		let functionSym: FunctionSymbol;
+		if (bcModule._main === null) {
+			console.log('Can not find main function');
+			return -1;
+		} else {
+			functionSym = bcModule._main;
+		}
+		let frame = new StackFrame(functionSym);
+		this.callStack.push(frame);
+
+		// current running code
+		let code: number[] = [];
+		if (functionSym.byteCode !== null) {
+			code = functionSym.byteCode;
+		} else {
+			console.log('Can not find code for' + frame.funtionSym.name);
+			return -1;
+		}
+		// current code position
+		let codeIndex = 0;
+		let opCode = code[codeIndex];
+
+		let byte1 = 0;
+		let byte2 = 0;
+		let vleft: any;
+		let vright: any;
+		const tempCodeIndex = 0;
+		let constIndex = 0;
+		let numValue = 0;
+		let strValue = '';
+		let returnValue: any = undefined;
+		// TODO is this really unneeded?
+		// let functionSym: FunctionSymbol;
+
+		while (true) {
+			switch (opCode) {
+				case OpCode.iconst_0:
+					frame.oprandStack.push(0);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iconst_1:
+					frame.oprandStack.push(1);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iconst_2:
+					frame.oprandStack.push(2);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iconst_3:
+					frame.oprandStack.push(3);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iconst_4:
+					frame.oprandStack.push(4);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.iconst_5:
+					frame.oprandStack.push(5);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.bipush: // load 1 byte
+					frame.oprandStack.push(code[++codeIndex]);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.sipush: // load 2 bytes
+					byte1 = code[++codeIndex];
+					byte2 = code[++codeIndex];
+					frame.oprandStack.push((byte1 << 8) | byte2);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.ldc: // load from const pool
+					constIndex = code[++codeIndex];
+					numValue = bcModule.consts[constIndex];
+					frame.oprandStack.push(numValue);
+					opCode = code[++codeIndex];
+					continue;
+				case OpCode.sldc:
+					constIndex = code[++codeIndex];
+					strValue = bcModule.consts[constIndex];
+					frame.oprandStack.push(strValue);
+					opCode = code[++codeIndex];
+					continue;
+				// TODO finish the rest of Opcode
+				case OpCode.ireturn:
+				case OpCode.return:
+					returnValue = undefined;
+					if (opCode === OpCode.ireturn) {
+						returnValue = frame.oprandStack.pop();
+					}
+					this.callStack.pop();
+					if (this.callStack.length === 0) {
+						return 0;
+					} else {
+						frame = this.callStack[this.callStack.length - 1];
+						if (opCode === OpCode.ireturn) {
+							frame.oprandStack.push(returnValue);
+						}
+						if (frame.funtionSym.byteCode !== null) {
+							code = frame.funtionSym.byteCode;
+							codeIndex = frame.returnIndex;
+							opCode = code[codeIndex];
+							continue;
+						} else {
+							console.log(
+								'Can not find code for' + frame.funtionSym.name
+							);
+							return -1;
+						}
+					}
+				case OpCode.invokestatic:
+					byte1 = code[++codeIndex];
+					byte2 = code[++codeIndex];
+					functionSym = bcModule.consts[(byte1 << 8) | byte2];
+
+					if (functionSym.name === 'println') {
+						const param = frame.oprandStack.pop();
+						opCode = code[++codeIndex];
+						console.log(param);
+					} else if (functionSym.name === 'tick') {
+						opCode = code[++codeIndex];
+						const date = new Date();
+						const value = Date.UTC(
+							date.getFullYear(),
+							date.getMonth(),
+							date.getDate(),
+							date.getHours(),
+							date.getMinutes(),
+							date.getSeconds(),
+							date.getMilliseconds()
+						);
+						frame.oprandStack.push(value);
+					} else if (functionSym.name === 'integer_to_string') {
+						opCode = code[++codeIndex];
+						numValue = frame.oprandStack.pop();
+						frame.oprandStack.push(numValue.toString());
+					} else {
+						frame.returnIndex = codeIndex + 1;
+						const lastFrame = frame;
+						frame = new StackFrame(functionSym);
+						this.callStack.push(frame);
+
+						const paramCount = (functionSym.theType as FunctionType)
+							.paramTypes.length;
+						for (let i = 0; i < paramCount - 1; i++) {
+							frame.localVars[i] = lastFrame.oprandStack.pop();
+						}
+
+						if (frame.funtionSym.byteCode !== null) {
+							code = frame.funtionSym.byteCode;
+							codeIndex = 0;
+							opCode = code[codeIndex];
+							continue;
+						} else {
+							console.log(
+								'Can not find code for ' + frame.funtionSym.name
+							);
+							return -1;
+						}
+					}
+				// eslint-disable-next-line no-fallthrough
+				default:
+					console.log('Unknown op code: ' + opCode.toString(16));
+					return -2;
+			}
+		}
+
 		return 0;
 	}
 }
