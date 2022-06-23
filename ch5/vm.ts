@@ -515,6 +515,67 @@ export class BCGenerator extends AstVisitor {
 		return code;
 	}
 
+	visitIntegerLiteral(integerLiteral: IntegerLiteral): any {
+		// console.log("visitIntegerLiteral in BC");
+		const ret: number[] = [];
+		const value = integerLiteral.value;
+		//0-5之间的数字，直接用快捷指令
+		if (value >= 0 && value <= 5) {
+			switch (value) {
+				case 0:
+					ret.push(OpCode.iconst_0);
+					break;
+				case 1:
+					ret.push(OpCode.iconst_1);
+					break;
+				case 2:
+					ret.push(OpCode.iconst_2);
+					break;
+				case 3:
+					ret.push(OpCode.iconst_3);
+					break;
+				case 4:
+					ret.push(OpCode.iconst_4);
+					break;
+				case 5:
+					ret.push(OpCode.iconst_5);
+					break;
+			}
+		}
+
+		//如果是8位整数，用bipush指令，直接放在后面的一个字节的操作数里就行了
+		else if (value >= -128 && value < 128) {
+			ret.push(OpCode.bipush);
+			ret.push(value);
+		}
+
+		//如果是16位整数，用sipush指令
+		else if (value >= -32768 && value < 32768) {
+			ret.push(OpCode.sipush);
+			//要拆成两个字节
+			ret.push(value >> 8);
+			ret.push(value & 0x00ff);
+		}
+
+		//大于16位的，采用ldc指令，从常量池中去取
+		else {
+			ret.push(OpCode.ldc);
+			//把value值放入常量池。
+			this.m.consts.push(value);
+			ret.push(this.m.consts.length - 1);
+		}
+		// console.log(ret);
+		return ret;
+	}
+
+	visitStringLiteral(stringLiteral: StringLiteral): any {
+		const ret: number[] = [];
+		const value = stringLiteral.value;
+		this.m.consts.push(value);
+		ret.push(OpCode.sldc);
+		ret.push(this.m.consts.length - 1);
+		return ret;
+	}
 	/**
 	 *
 	 * @param code
@@ -666,7 +727,7 @@ export class VM {
 		let varIndex = 0;
 		let offset = 0;
 		// TODO is this really unneeded?
-		// let functionSym: FunctionSymbol;
+		let tempFunctionSym: FunctionSymbol;
 
 		// eslint-disable-next-line no-constant-condition
 		while (true) {
@@ -819,13 +880,13 @@ export class VM {
 				case OpCode.invokestatic:
 					byte1 = code[++codeIndex];
 					byte2 = code[++codeIndex];
-					functionSym = bcModule.consts[(byte1 << 8) | byte2];
+					tempFunctionSym = bcModule.consts[(byte1 << 8) | byte2];
 
-					if (functionSym.name === 'println') {
+					if (tempFunctionSym.name === 'println') {
 						const param = frame.oprandStack.pop();
 						opCode = code[++codeIndex];
 						console.log(param);
-					} else if (functionSym.name === 'tick') {
+					} else if (tempFunctionSym.name === 'tick') {
 						opCode = code[++codeIndex];
 						const date = new Date();
 						const value = Date.UTC(
@@ -838,18 +899,19 @@ export class VM {
 							date.getMilliseconds()
 						);
 						frame.oprandStack.push(value);
-					} else if (functionSym.name === 'integer_to_string') {
+					} else if (tempFunctionSym.name === 'integer_to_string') {
 						opCode = code[++codeIndex];
 						numValue = frame.oprandStack.pop();
 						frame.oprandStack.push(numValue.toString());
 					} else {
 						frame.returnIndex = codeIndex + 1;
 						const lastFrame = frame;
-						frame = new StackFrame(functionSym);
+						frame = new StackFrame(tempFunctionSym);
 						this.callStack.push(frame);
 
-						const paramCount = (functionSym.theType as FunctionType)
-							.paramTypes.length;
+						const paramCount = (
+							tempFunctionSym.theType as FunctionType
+						).paramTypes.length;
 						for (let i = 0; i < paramCount - 1; i++) {
 							frame.localVars[i] = lastFrame.oprandStack.pop();
 						}
@@ -914,16 +976,20 @@ export class VM {
 				case OpCode.if_icmpgt:
 					byte1 = code[++codeIndex];
 					byte2 = code[++codeIndex];
+					vright = frame.oprandStack.pop();
+					vleft = frame.oprandStack.pop();
 					if (vleft > vright) {
 						codeIndex = (byte1 << 8) | byte2;
 						opCode = code[codeIndex];
 					} else {
-						opCode = code[codeIndex];
+						opCode = code[++codeIndex];
 					}
 					continue;
 				case OpCode.if_icmple:
 					byte1 = code[++codeIndex];
 					byte2 = code[++codeIndex];
+					vright = frame.oprandStack.pop();
+					vleft = frame.oprandStack.pop();
 					if (vleft <= vright) {
 						codeIndex = (byte1 << 8) | byte2;
 						opCode = code[codeIndex];
