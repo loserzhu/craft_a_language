@@ -26,6 +26,7 @@ import {Scope} from './scope';
 import {SysTypes, Type, FunctionType} from './types';
 import {Op, Operators} from './scanner';
 import {CompilerError} from './error';
+import {ReturnStatement} from './ast';
 
 export class SemanticAnalyer {
 	passes: SemanticAstVisitor[] = [
@@ -33,7 +34,8 @@ export class SemanticAnalyer {
 		new RefResolver(),
 		new TypeChecker(),
 		new TypeConverter(),
-		new LeftValueAttributor()
+		new LeftValueAttributor(),
+		new Trans()
 	];
 
 	errors: CompilerError[] = []; //语义错误
@@ -864,5 +866,13 @@ export class ConstFolder extends SemanticAstVisitor {
 				);
 			}
 		}
+	}
+}
+
+class Trans extends SemanticAstVisitor {
+	visitProg(prog: Prog): any {
+		//在后面添加return语句
+		//TODO: 需要判断最后一个语句是不是已经是Return语句
+		prog.stmts.push(new ReturnStatement(prog.endPos, prog.endPos, null));
 	}
 }
