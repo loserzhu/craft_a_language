@@ -912,10 +912,9 @@ export class VM {
 						const paramCount = (
 							tempFunctionSym.theType as FunctionType
 						).paramTypes.length;
-						for (let i = 0; i < paramCount - 1; i++) {
+						for (let i = paramCount - 1; i >= 0; i--) {
 							frame.localVars[i] = lastFrame.oprandStack.pop();
 						}
-
 						if (frame.funtionSym.byteCode !== null) {
 							code = frame.funtionSym.byteCode;
 							codeIndex = 0;

@@ -178,7 +178,7 @@ export class SymbolDumper extends SymbolVisitor {
 		if (sym.byteCode !== null) {
 			let str = '';
 			for (const code of sym.byteCode) {
-				str += code.toString() + ' ';
+				str += code.toString(16) + ' ';
 			}
 			console.log(additional + '    bytecode: ' + str);
 		}
