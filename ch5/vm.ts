@@ -1009,3 +1009,386 @@ export class VM {
 		}
 	}
 }
+
+export class BCModuleWriter {
+	private types: Type[] = [];
+
+	private writeString(bc: number[], str: string) {
+		bc.push(str.length);
+		bc.push(...[...str].map((s) => s.charCodeAt(0)));
+	}
+
+	write(bcModule: BCModule): number[] {
+		let bc2: number[] = [];
+		this.types = [];
+		let numConsts = 0;
+		for (const c of bcModule.consts) {
+			if (typeof c === 'number') {
+				bc2.push(1);
+				bc2.push(c);
+				numConsts++;
+			} else if (typeof c === 'string') {
+				bc2.push(2);
+				this.writeString(bc2, c);
+				numConsts++;
+			} else if (typeof c === 'object') {
+				const functionSym = c as FunctionSymbol;
+				if (!built_ins.has(functionSym.name)) {
+					bc2.push(3);
+					bc2 = bc2.concat(this.writeFunctionSymbol(functionSym));
+					numConsts++;
+				}
+			}
+		}
+
+		let bc1: number[] = [];
+		this.writeString(bc1, 'types');
+		bc1.push(this.types.length);
+
+		for (const t of this.types) {
+			if (Type.isFunctionType(t)) {
+				bc1 = bc1.concat(this.writeFunctionType(t as FunctionType));
+			} else if (Type.isSimpleType(t)) {
+				bc1 = bc1.concat(this.writeSimpleType(t as SimpleType));
+			} else if (Type.isUnionType(t)) {
+				bc1 = bc1.concat(this.writeUnionType(t as UnionType));
+			} else {
+				console.log('Unsupported type in BCModuleWriter');
+				console.log(t);
+			}
+		}
+
+		this.writeString(bc1, 'consts');
+		bc1.push(numConsts);
+		return bc1.concat(bc2);
+	}
+	private writeVarSymbol(sym: VarSymbol): number[] {
+		const bc: number[] = [];
+
+		//写入变量名称
+		this.writeString(bc, sym.name);
+
+		//写入类型名称
+		this.writeString(bc, sym.theType.name);
+		if (
+			!SysTypes.isSysType(sym.theType) &&
+			this.types.indexOf(sym.theType) === -1
+		) {
+			this.types.push(sym.theType);
+		}
+
+		return bc;
+	}
+	private writeFunctionSymbol(sym: FunctionSymbol): number[] {
+		let bc: number[] = [];
+		//写入函数名称
+		this.writeString(bc, sym.name);
+
+		//写入类型名称
+		this.writeString(bc, sym.theType.name);
+		if (
+			!SysTypes.isSysType(sym.theType) &&
+			this.types.indexOf(sym.theType) === -1
+		) {
+			this.types.push(sym.theType);
+		}
+		bc.push(sym.opStackSize);
+
+		bc.push(sym.vars.length);
+
+		//逐一写入变量
+		//TODO：其实具体变量的信息不是必需的。
+		for (const v of sym.vars) {
+			bc = bc.concat(this.writeVarSymbol(v));
+		}
+
+		//写入函数函数体的字节码
+		if (sym.byteCode === null) {
+			//内置函数
+			bc.push(0);
+		} else {
+			//自定义函数
+			bc.push((sym.byteCode as number[]).length);
+			bc = bc.concat(sym.byteCode as number[]);
+		}
+
+		return bc;
+	}
+
+	writeFunctionType(t: FunctionType): number[] {
+		const bc: number[] = [];
+
+		bc.push(2); //代表FunctionType
+
+		//写入类型名称
+		this.writeString(bc, t.name);
+
+		//写入返回值名称
+		this.writeString(bc, t.returnType.name);
+
+		//写入参数数量
+		bc.push(t.paramTypes.length);
+
+		//写入参数的类型名称
+		for (const pt of t.paramTypes) {
+			this.writeString(bc, pt.name);
+			if (this.types.indexOf(pt) === -1) {
+				this.types.push(pt);
+			}
+		}
+
+		return bc;
+	}
+
+	writeSimpleType(t: SimpleType): number[] {
+		const bc: number[] = [];
+		if (SysTypes.isSysType(t)) {
+			//内置类型不用添加
+			return bc;
+		}
+
+		bc.push(1); //代表SimpleType
+
+		//写入类型名称
+		this.writeString(bc, t.name);
+
+		//写入父类型的数量
+		bc.push(t.upperTypes.length);
+		for (const ut of t.upperTypes) {
+			this.writeString(bc, ut.name);
+			if (!SysTypes.isSysType(ut) && this.types.indexOf(ut) === -1) {
+				this.types.push(ut);
+			}
+		}
+
+		return bc;
+	}
+
+	writeUnionType(t: UnionType): number[] {
+		const bc: number[] = [];
+
+		bc.push(3); //代表UnionType
+
+		//写入类型名称
+		this.writeString(bc, t.name);
+
+		//写入联合的各类型名称
+		for (const ut of t.types) {
+			this.writeString(bc, ut.name);
+			if (this.types.indexOf(ut) === -1) {
+				this.types.push(ut);
+			}
+		}
+
+		return bc;
+	}
+}
+
+export class BCModuleReader {
+	private index = 0;
+	private types: Map<string, Type> = new Map();
+	private typeInfos: Map<string, any> = new Map();
+
+	private addSystemTypes() {
+		this.types.set('any', SysTypes.Any);
+		this.types.set('number', SysTypes.Number);
+		this.types.set('string', SysTypes.String);
+		this.types.set('integer', SysTypes.Integer);
+		this.types.set('decimal', SysTypes.Decimal);
+		this.types.set('boolean', SysTypes.Boolean);
+		this.types.set('null', SysTypes.Null);
+		this.types.set('undefined', SysTypes.Undefined);
+		this.types.set('void', SysTypes.Void);
+	}
+
+	private readString(bc: number[]): string {
+		const len = bc[this.index++];
+		let str = '';
+		for (let i = 0; i < len; i++) {
+			str += String.fromCharCode(bc[this.index++]);
+		}
+		return str;
+	}
+
+	private readSimpleType(bc: number[]) {
+		const typeName = this.readString(bc);
+		const numUpperTypes = bc[this.index++];
+		const upperTypes: string[] = [];
+		for (let i = 0; i < numUpperTypes; i++) {
+			upperTypes.push(this.readString(bc));
+		}
+
+		const t = new SimpleType(typeName, []);
+		this.types.set(typeName, t);
+		this.typeInfos.set(typeName, upperTypes);
+	}
+
+	private readFunctionType(bc: number[]) {
+		const typeName = this.readString(bc);
+		const returnType = this.readString(bc);
+		const numParams = bc[this.index++];
+		const paramTypes: string[] = [];
+		for (let i = 0; i < numParams; i++) {
+			paramTypes.push(this.readString(bc));
+		}
+
+		const t = new FunctionType(SysTypes.Any, [], typeName);
+		this.types.set(typeName, t);
+		this.typeInfos.set(typeName, {
+			returnType: returnType,
+			paramTypes: paramTypes
+		});
+	}
+
+	private readUnionType(bc: number[]) {
+		const typeName = this.readString(bc);
+		const numTypes = bc[this.index++];
+		const unionTypes: string[] = [];
+		for (let i = 0; i < numTypes; i++) {
+			unionTypes.push(this.readString(bc));
+		}
+
+		const t = new UnionType([], typeName);
+		this.types.set(typeName, t);
+		this.typeInfos.set(typeName, unionTypes);
+	}
+
+	private readVarSymbol(bc: number[]): VarSymbol {
+		//变量名称
+		const varName = this.readString(bc);
+
+		//类型名称
+		const typeName = this.readString(bc);
+		const varType = this.types.get(typeName) as Type;
+
+		return new VarSymbol(varName, varType);
+	}
+
+	private readFunctionSymbol(bc: number[]): FunctionSymbol {
+		//函数名称
+		const functionName = this.readString(bc);
+
+		//读取类型名称
+		const typeName = this.readString(bc);
+		const functionType = this.types.get(typeName) as FunctionType;
+
+		//操作数栈的大小
+		const opStackSize = bc[this.index++];
+
+		//变量个数
+		const numVars = bc[this.index++];
+
+		//读取变量
+		const vars: VarSymbol[] = [];
+		for (let i = 0; i < numVars; i++) {
+			vars.push(this.readVarSymbol(bc));
+		}
+
+		//读取函数体的字节码
+		const numByteCodes = bc[this.index++];
+		let byteCodes: number[] | null;
+		if (numByteCodes === 0) {
+			//系统函数
+			byteCodes = null;
+		} else {
+			byteCodes = bc.slice(this.index, this.index + numByteCodes);
+			this.index += numByteCodes;
+		}
+
+		//创建函数符号
+		const functionSym = new FunctionSymbol(functionName, functionType);
+		functionSym.vars = vars;
+		functionSym.opStackSize = opStackSize;
+		functionSym.byteCode = byteCodes;
+
+		return functionSym;
+	}
+
+	read(bc: number[]): BCModule {
+		this.index = 0;
+		this.types.clear();
+		const bcModule = new BCModule();
+		this.addSystemTypes();
+
+		let str = this.readString(bc);
+		assert(str === 'types', "从字节码中读取的字符串不是'types'");
+		const numTypes = bc[this.index++];
+		for (let i = 0; i < numTypes; i++) {
+			const typeKind = bc[this.index++];
+			switch (typeKind) {
+				case 1:
+					this.readSimpleType(bc);
+					break;
+				case 2:
+					this.readFunctionType(bc);
+					break;
+				case 3:
+					this.readUnionType(bc);
+					break;
+				default:
+					console.log('Unsupported type kind: ' + typeKind);
+			}
+		}
+
+		this.buildTypes();
+
+		str = this.readString(bc);
+		assert(str === 'consts', "从字节码中读取的字符串不是'consts'");
+		const numConsts = bc[this.index++];
+		for (let i = 0; i < numConsts; i++) {
+			const constType = bc[this.index++];
+			if (constType === 1) {
+				bcModule.consts.push(bc[this.index++]);
+			} else if (constType === 2) {
+				const str = this.readString(bc);
+				bcModule.consts.push(str);
+			} else if (constType === 3) {
+				const functionSym = this.readFunctionSymbol(bc);
+				bcModule.consts.push(functionSym);
+				if (functionSym.name === 'main') {
+					bcModule._main = functionSym;
+				}
+			} else {
+				console.log('Unsupported const type: ' + constType);
+			}
+		}
+		return bcModule;
+	}
+
+	private buildTypes() {
+		for (const typeName of this.typeInfos.keys()) {
+			const t = this.types.get(typeName) as Type;
+			if (Type.isSimpleType(t)) {
+				const simpleType = t as SimpleType;
+				const upperTypes = this.typeInfos.get(typeName) as string[];
+				for (const utName of upperTypes) {
+					const ut = this.types.get(utName) as Type;
+					simpleType.upperTypes.push(ut);
+				}
+			} else if (Type.isFunctionType(t)) {
+				const funtionType = t as FunctionType;
+				const returnType = this.typeInfos.get(typeName)
+					.returnType as string;
+				const paramTypes = this.typeInfos.get(typeName)
+					.paramTypes as string[];
+				funtionType.returnType = this.types.get(returnType) as Type;
+				for (const utName of paramTypes) {
+					const ut = this.types.get(utName) as Type;
+					funtionType.paramTypes.push(ut);
+				}
+			} else if (Type.isUnionType(t)) {
+				const unionType = t as UnionType;
+				const types = this.typeInfos.get(typeName) as string[];
+				for (const utName of types) {
+					const ut = this.types.get(utName) as Type;
+					unionType.types.push(ut);
+				}
+			} else {
+				console.log('Unsupported type in BCModuleReader.');
+				console.log(t);
+			}
+		}
+
+		this.typeInfos.clear();
+	}
+}

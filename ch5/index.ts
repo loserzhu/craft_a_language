@@ -25,7 +25,14 @@ import {Parser} from './parser';
 import {SemanticAnalyer} from './semantic';
 import {InternalSymbol, VarSymbol} from './symbol';
 import {ScopeDumper} from './scope';
-import {BCGenerator, BCModule, BCModuleDumper, VM} from './vm';
+import {
+	BCGenerator,
+	BCModule,
+	BCModuleDumper,
+	VM,
+	BCModuleWriter,
+	BCModuleReader
+} from './vm';
 
 /////////////////////////////////////////////////////////////////////////
 // 解释器
@@ -478,10 +485,36 @@ function compileAndRun(fileName: string, program: string) {
 	console.log('程序返回值：');
 	// console.log(retVal);
 	console.log('耗时：' + (date2.getTime() - date1.getTime()) / 1000 + '秒');
-}
 
-//处理命令行参数，从文件里读取源代码
-import * as process from 'process';
+	console.log('\n生成字节码文件：');
+	const writer = new BCModuleWriter();
+	const code = writer.write(bcModule);
+	let str = '';
+	for (const c of code) {
+		str += c.toString(16) + ' ';
+	}
+	console.log(str);
+
+	//保存成二进制字节码
+	const bcFileName = fileName + '.bc';
+	writeByteCode(bcFileName, code);
+	const newCode = readByteCode(bcFileName);
+	console.log(newCode);
+
+	// 读取字节码文件并执行;
+	console.log('\n从字节码中生成新BCModule:');
+	const reader = new BCModuleReader();
+	const newModule = reader.read(code);
+	bcModuleDumper.dump(newModule);
+
+	console.log('\n用栈机执行新的BCModule:');
+	date1 = new Date();
+	retVal = new VM().execute(newModule);
+	date2 = new Date();
+	console.log('程序返回值：');
+	console.log(retVal);
+	console.log('耗时：' + (date2.getTime() - date1.getTime()) / 1000 + '秒');
+}
 
 // 要求命令行的第三个参数，一定是一个文件名。
 if (process.argv.length < 3) {
@@ -492,6 +525,38 @@ if (process.argv.length < 3) {
 //编译和运行源代码
 const fileName = process.argv[2] as string;
 import * as fs from 'fs';
+
+function writeByteCode(fileName: string, bc: number[]) {
+	const buffer = Buffer.alloc(bc.length);
+	for (let i = 0; i < bc.length; i++) {
+		buffer[i] = bc[i];
+	}
+
+	console.log(buffer);
+
+	try {
+		fs.writeFileSync(fileName, buffer);
+	} catch (err) {
+		console.log(err);
+	}
+}
+
+function readByteCode(fileName: string): number[] {
+	const bc: number[] = [];
+
+	let buffer: Buffer;
+
+	try {
+		buffer = fs.readFileSync(fileName);
+		for (let i = 0; i < buffer.length; i++) {
+			bc[i] = buffer[i];
+		}
+	} catch (err) {
+		console.log(err);
+	}
+
+	return bc;
+}
 
 fs.readFile(fileName, 'utf8', function (err: any, data: string) {
 	if (err) throw err;
