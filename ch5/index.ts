@@ -25,6 +25,14 @@ import {Parser} from './parser';
 import {SemanticAnalyer} from './semantic';
 import {InternalSymbol, VarSymbol} from './symbol';
 import {ScopeDumper} from './scope';
+import {
+	BCGenerator,
+	BCModule,
+	BCModuleDumper,
+	VM,
+	BCModuleWriter,
+	BCModuleReader
+} from './vm';
 
 /////////////////////////////////////////////////////////////////////////
 // 解释器
@@ -32,7 +40,7 @@ import {ScopeDumper} from './scope';
 /**
  * 遍历AST，执行函数调用。
  */
-class Interpreter extends AstVisitor {
+class Intepretor extends AstVisitor {
 	//调用栈
 	callStack: StackFrame[] = [];
 
@@ -437,7 +445,7 @@ function compileAndRun(fileName: string, program: string) {
 	//语义分析
 	const semanticAnalyer = new SemanticAnalyer();
 	semanticAnalyer.execute(prog);
-	console.log('\n符号表: ');
+	console.log('\n符号表：');
 	new ScopeDumper().visit(prog, '');
 	console.log('\n语义分析后的AST，注意变量和函数已被消解:');
 	astDumper.visit(prog, '');
@@ -455,18 +463,58 @@ function compileAndRun(fileName: string, program: string) {
 
 	//运行程序
 	console.log('\n通过AST解释器运行程序:');
-	const date1 = new Date();
-	const retVal = new Interpreter().visit(prog);
-	const date2 = new Date();
+	let date1 = new Date();
+	let retVal = new Intepretor().visit(prog);
+	let date2 = new Date();
 	console.log('程序返回值：');
 	// console.log(retVal);
 	console.log('耗时：' + (date2.getTime() - date1.getTime()) / 1000 + '秒');
-}
 
-//处理命令行参数，从文件里读取源代码
-import * as process from 'process';
-import {assert} from 'console';
-import {stringify} from 'querystring';
+	// 用vm运行程序
+	console.log('\n编译成字节码:');
+	const generator = new BCGenerator();
+	const bcModule = generator.visit(prog) as BCModule;
+	const bcModuleDumper = new BCModuleDumper();
+	bcModuleDumper.dump(bcModule);
+	// console.log(bcModule);
+
+	console.log('\n使用栈机运行程序:');
+	date1 = new Date();
+	retVal = new VM().execute(bcModule);
+	date2 = new Date();
+	console.log('程序返回值：');
+	// console.log(retVal);
+	console.log('耗时：' + (date2.getTime() - date1.getTime()) / 1000 + '秒');
+
+	console.log('\n生成字节码文件：');
+	const writer = new BCModuleWriter();
+	const code = writer.write(bcModule);
+	let str = '';
+	for (const c of code) {
+		str += c.toString(16) + ' ';
+	}
+	console.log(str);
+
+	//保存成二进制字节码
+	const bcFileName = fileName + '.bc';
+	writeByteCode(bcFileName, code);
+	const newCode = readByteCode(bcFileName);
+	console.log(newCode);
+
+	// 读取字节码文件并执行;
+	console.log('\n从字节码中生成新BCModule:');
+	const reader = new BCModuleReader();
+	const newModule = reader.read(code);
+	bcModuleDumper.dump(newModule);
+
+	console.log('\n用栈机执行新的BCModule:');
+	date1 = new Date();
+	retVal = new VM().execute(newModule);
+	date2 = new Date();
+	console.log('程序返回值：');
+	console.log(retVal);
+	console.log('耗时：' + (date2.getTime() - date1.getTime()) / 1000 + '秒');
+}
 
 // 要求命令行的第三个参数，一定是一个文件名。
 if (process.argv.length < 3) {
@@ -477,6 +525,38 @@ if (process.argv.length < 3) {
 //编译和运行源代码
 const fileName = process.argv[2] as string;
 import * as fs from 'fs';
+
+function writeByteCode(fileName: string, bc: number[]) {
+	const buffer = Buffer.alloc(bc.length);
+	for (let i = 0; i < bc.length; i++) {
+		buffer[i] = bc[i];
+	}
+
+	console.log(buffer);
+
+	try {
+		fs.writeFileSync(fileName, buffer);
+	} catch (err) {
+		console.log(err);
+	}
+}
+
+function readByteCode(fileName: string): number[] {
+	const bc: number[] = [];
+
+	let buffer: Buffer;
+
+	try {
+		buffer = fs.readFileSync(fileName);
+		for (let i = 0; i < buffer.length; i++) {
+			bc[i] = buffer[i];
+		}
+	} catch (err) {
+		console.log(err);
+	}
+
+	return bc;
+}
 
 fs.readFile(fileName, 'utf8', function (err: any, data: string) {
 	if (err) throw err;
